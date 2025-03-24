@@ -31,7 +31,17 @@ public class Cs16Bot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String text = update.getMessage().getText();
-            if (text.equals("/servers")) {
+            if (text.equals("/start")){
+                SendMessage sendMessage = new SendMessage();
+                sendMessage.setChatId(update.getMessage().getChatId().toString());
+                sendMessage.setText("Serverlar ro'yxatini olish uchun /servers buyrug'ini kiriting!");
+                try {
+                    execute(sendMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+            }
+            else if (text.equals("/servers")) {
                 sendServerList(update.getMessage().getChatId().toString());
             }
         } else if (update.hasCallbackQuery()) {
