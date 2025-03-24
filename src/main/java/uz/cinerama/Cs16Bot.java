@@ -2,8 +2,9 @@ package uz.cinerama;
 
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -14,88 +15,47 @@ import java.util.*;
 public class Cs16Bot extends TelegramLongPollingBot {
 
     private final ServerParser parser = new ServerParser();
-    private final Map<String, Integer> userPages = new HashMap<>();
+    private static final int LIMIT = 5;
 
     @Override
     public String getBotUsername() {
-        return "tsarvarcombot"; // Bot nomingiz
+        return "tsarvarcombot";
     }
 
     @Override
     public String getBotToken() {
-        return "8050005369:AAFsWSjs8FvDjbADG6Zdz19qCz0cVSKE4Qw"; // Tokeningizni shu yerga joylang
+        return "8050005369:AAFsWSjs8FvDjbADG6Zdz19qCz0cVSKE4Qw";
     }
 
     @Override
     public void onUpdateReceived(Update update) {
-        String chatId;
-
         if (update.hasMessage() && update.getMessage().hasText()) {
-            chatId = update.getMessage().getChatId().toString();
             String text = update.getMessage().getText();
-
             if (text.equals("/servers")) {
-                userPages.put(chatId, 1);
-                sendServers(chatId, 1);
-            } else {
-                sendMsg(chatId, "Serverlar ro'yxati uchun /servers buyrug'ini kiriting.");
+                sendServerList(update.getMessage().getChatId().toString());
             }
         } else if (update.hasCallbackQuery()) {
-            chatId = update.getCallbackQuery().getMessage().getChatId().toString();
-            String data = update.getCallbackQuery().getData();
+            CallbackQuery query = update.getCallbackQuery();
+            String data = query.getData();
 
-            if (data.startsWith("prev_") || data.startsWith("next_")) {
-                int page = Integer.parseInt(data.split("_")[1]);
-                userPages.put(chatId, page);
-                sendServers(chatId, page);
-            }
+            int page = Integer.parseInt(data);
+            Message message = (Message) query.getMessage();
+            editServerList(message, page);
         }
     }
 
-    private void sendServers(String chatId, int page) {
-        List<Server> servers = parser.getServers(page, 3); // Har sahifada 3 ta server
-
-        StringBuilder msg = new StringBuilder("<b>🔥 CS 1.6 Serverlari (Sahifa " + page + "):</b>\n\n");
-
-        if (!servers.isEmpty()) {
-            for (Server server : servers) {
-                msg.append("🎮 <b>Nomi:</b> ").append(server.getName()).append("\n")
-                        .append("🌐 <b>IP:</b> <code>").append(server.getIp()).append("</code>\n")
-                        .append("👥 <b>O‘yinchilar:</b> ").append(server.getPlayers()).append("\n")
-                        .append("🗺 <b>Xarita:</b> ").append(server.getMap()).append("\n")
-                        .append("🌍 <b>Davlat:</b> ").append(getCountryFlag(server.getCountry())).append(" ").append(server.getCountry()).append("\n\n");
-            }
-        } else {
-            msg.append("❌ Serverlar topilmadi yoki xatolik yuz berdi!");
-        }
+    private void sendServerList(String chatId) {
+        List<Server> servers = parser.getServers(0, LIMIT);
+        StringBuilder msg = new StringBuilder("*CS 1.6 Serverlar:*\n\n");
+        for (Server s : servers) msg.append(s);
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(msg.toString());
+        message.enableMarkdown(true);
+        message.enableMarkdownV2(false);
         message.enableHtml(true);
-
-        // Inline tugmalar
-        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-
-        List<InlineKeyboardButton> row = new ArrayList<>();
-
-        if (page > 1) {
-            InlineKeyboardButton prev = new InlineKeyboardButton();
-            prev.setText("⬅️ Oldingi");
-            prev.setCallbackData("prev_" + (page - 1));
-            row.add(prev);
-        }
-
-        InlineKeyboardButton next = new InlineKeyboardButton();
-        next.setText("Keyingi ➡️");
-        next.setCallbackData("next_" + (page + 1));
-        row.add(next);
-
-        keyboard.add(row);
-        markup.setKeyboard(keyboard);
-
-        message.setReplyMarkup(markup);
+        message.setReplyMarkup(getPaginationMarkup(0));
 
         try {
             execute(message);
@@ -104,34 +64,56 @@ public class Cs16Bot extends TelegramLongPollingBot {
         }
     }
 
-    private void sendMsg(String chatId, String message) {
-        SendMessage msg = new SendMessage();
-        msg.setChatId(chatId);
-        msg.setText(message);
-        msg.enableHtml(true);
+    private void editServerList(Message message, int page) {
+        List<Server> servers = parser.getServers(page, LIMIT);
+        StringBuilder msg = new StringBuilder("*CS 1.6 Serverlar:*\n\n");
+        for (Server s : servers) msg.append(s);
+
+        EditMessageText edit = new EditMessageText();
+        edit.setChatId(message.getChatId().toString());
+        edit.setMessageId(message.getMessageId());
+        edit.setText(msg.toString());
+        edit.enableMarkdown(true);
+        edit.enableHtml(true);
+        edit.setReplyMarkup(getPaginationMarkup(page));
 
         try {
-            execute(msg);
+            execute(edit);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
     }
 
-    private String getCountryFlag(String countryCode) {
-        if (countryCode == null || countryCode.length() != 2) return "";
-        countryCode = countryCode.toUpperCase();
+    private InlineKeyboardMarkup getPaginationMarkup(int page) {
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
-        int firstChar = Character.codePointAt(countryCode, 0) - 0x41 + 0x1F1E6;
-        int secondChar = Character.codePointAt(countryCode, 1) - 0x41 + 0x1F1E6;
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
 
-        return new String(Character.toChars(firstChar)) + new String(Character.toChars(secondChar));
+        if (page > 0) {
+            InlineKeyboardButton prevButton = new InlineKeyboardButton();
+            prevButton.setText("⬅️ Oldingi");
+            prevButton.setCallbackData(String.valueOf(page - 1));
+            buttons.add(prevButton);
+        }
+        InlineKeyboardButton nextButton = new InlineKeyboardButton();
+        nextButton.setText("➡️ Keyingi");
+        nextButton.setCallbackData(String.valueOf(page + 1));
+        buttons.add(nextButton);
+
+        rows.add(buttons);
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        markup.setKeyboard(rows);
+
+        return markup;
     }
+
 
     public static void main(String[] args) {
         try {
-            TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(new Cs16Bot());
-            System.out.println("🤖 Bot ishga tushdi!");
+            TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
+            api.registerBot(new Cs16Bot());
+            System.out.println("✅ Bot ishga tushdi!");
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
