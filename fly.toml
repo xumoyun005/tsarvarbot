@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for tsarvarbot-lyqwmq on 2025-05-22T06:18:50Z
+# fly.toml app configuration file generated for tsarvarbot on 2025-05-22T07:16:52Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'tsarvarbot-lyqwmq'
+app = 'tsarvarbot'
 primary_region = 'hkg'
 
 [build]
