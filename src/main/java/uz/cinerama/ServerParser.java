@@ -9,6 +9,7 @@ import org.jsoup.select.Elements;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -19,7 +20,7 @@ public class ServerParser {
 
         try {
             int sitePage = page * limit / 50; // 1 ta sayt sahifasida 50 ta server bo'lishi mumkin
-            URL url = new URL("https://tsarvar.com/ajax/ru/servers/counter-strike-1.6?maxPlayersTo=32&page=" + sitePage);
+            URL url = URI.create("https://tsarvar.com/ajax/ru/servers/counter-strike-1.6?maxPlayersTo=32&page=" + sitePage).toURL();
 
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");

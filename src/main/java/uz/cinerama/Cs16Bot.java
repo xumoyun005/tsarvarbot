@@ -16,6 +16,11 @@ public class Cs16Bot extends TelegramLongPollingBot {
 
     private final ServerParser parser = new ServerParser();
     private static final int LIMIT = 5;
+    private static final String BOT_TOKEN = "8050005369:AAFsWSjs8FvDjbADG6Zdz19qCz0cVSKE4Qw";
+
+    public Cs16Bot() {
+        super(BOT_TOKEN);
+    }
 
     @Override
     public String getBotUsername() {
@@ -24,7 +29,7 @@ public class Cs16Bot extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
-        return "8050005369:AAFsWSjs8FvDjbADG6Zdz19qCz0cVSKE4Qw";
+        return BOT_TOKEN;
     }
 
     @Override
